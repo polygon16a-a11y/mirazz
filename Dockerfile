@@ -8,7 +8,6 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts
 COPY server.js index.html ./
 RUN mkdir -p /data && chown -R node:node /app /data
-VOLUME ["/data"]
 EXPOSE 3000
 USER node
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
