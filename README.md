@@ -38,9 +38,9 @@ Render deployment still requires the repository to exist on GitHub and a Render 
 
 ## Deploy on Railway
 
-In Railway, deploy the repository with the included Dockerfile, then attach a persistent volume mounted at `/var/data`. Set `DATABASE_PATH=/var/data/users.sqlite`, `NODE_ENV=production`, and `BTC_NETWORK=testnet` in the service variables. Set the healthcheck path to `/healthz`.
+In Railway, deploy the repository with the included Dockerfile, then attach a persistent volume mounted at `/var/data`. In the service Variables, set `DATABASE_PATH=/var/data/users.sqlite`, `RAILWAY_RUN_UID=0`, `NODE_ENV=production`, and `BTC_NETWORK=testnet`. Set the healthcheck path to `/healthz`. The `RAILWAY_RUN_UID=0` setting is required for this image's default non-root `node` user to write to Railway's root-owned volume; it runs the app as root inside the container.
 
-Railway mounts volumes as root. Because this image normally runs as the unprivileged `node` user, set Railway's platform variable `RAILWAY_RUN_UID=0` for this service if the mounted directory is not writable; this runs the app process as root inside the container. Use that override only on Railway when needed. The app also detects Railway's `RAILWAY_VOLUME_MOUNT_PATH` automatically if `DATABASE_PATH` is omitted, and fails with a clear startup error if it detects Railway but no volume is mounted.
+Railway mounts volumes as root. The app detects Railway's `RAILWAY_VOLUME_MOUNT_PATH` automatically if `DATABASE_PATH` is omitted, verifies any configured database path is inside that mount, and fails with a clear startup error if it detects Railway but no volume is mounted. Use `RAILWAY_RUN_UID=0` only on Railway; local Docker and Render continue to run as the unprivileged `node` user with their own writable mounted paths.
 
 For private signaling, configure `PEER_HOST`, `PEER_PORT`, `PEER_PATH`, and `PEER_SECURE`. If `PEER_HOST` is blank, browsers use the public PeerJS signaling service. Do not switch `BTC_NETWORK` to `mainnet` until you intentionally want real Bitcoin transactions.
 
