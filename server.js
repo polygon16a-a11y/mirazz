@@ -15,6 +15,7 @@ const INDEX_HTML = path.join(__dirname, 'index.html');
 const derivePassword = promisify(require('node:crypto').scrypt);
 
 function createApp(databasePath = getDefaultDatabasePath(), options = {}) {
+  databasePath = validateDatabasePath(databasePath);
   const rateLimits = {
     login: options.rateLimits?.login ?? 10,
     register: options.rateLimits?.register ?? 5,
@@ -31,9 +32,13 @@ function createApp(databasePath = getDefaultDatabasePath(), options = {}) {
     mkdirSync(path.dirname(databasePath), { recursive: true });
     database = new DatabaseSync(databasePath);
   } catch (error) {
+    const railwayHint = process.env.RAILWAY_SERVICE_ID || process.env.RAILWAY_ENVIRONMENT_NAME
+      ? ' On Railway, mount a volume at /var/data, set DATABASE_PATH=/var/data/users.sqlite, ' +
+        'and set RAILWAY_RUN_UID=0 if the volume is not writable by the image user.'
+      : '';
     throw new Error(
       `Unable to open SQLite database at "${databasePath}". ` +
-      'Ensure DATABASE_PATH points inside a writable persistent volume.',
+      'Ensure DATABASE_PATH points inside a writable persistent volume.' + railwayHint,
       { cause: error }
     );
   }
@@ -288,6 +293,30 @@ function getDefaultDatabasePath() {
     );
   }
   return path.join(__dirname, 'data', 'users.sqlite');
+}
+
+function validateDatabasePath(databasePath) {
+  const mountPath = process.env.RAILWAY_VOLUME_MOUNT_PATH;
+  const isRailway = process.env.RAILWAY_SERVICE_ID || process.env.RAILWAY_ENVIRONMENT_NAME;
+  if (isRailway && !mountPath) {
+    throw new Error(
+      'Railway detected without a mounted volume. Attach a volume at /var/data and set ' +
+      'DATABASE_PATH=/var/data/users.sqlite.'
+    );
+  }
+  if (!mountPath) return databasePath;
+
+  const resolvedMount = path.resolve(mountPath);
+  const resolvedDatabase = path.resolve(databasePath);
+  const relativeDatabasePath = path.relative(resolvedMount, resolvedDatabase);
+  if (!relativeDatabasePath || relativeDatabasePath === '..' ||
+      relativeDatabasePath.startsWith(`..${path.sep}`) || path.isAbsolute(relativeDatabasePath)) {
+    throw new Error(
+      `DATABASE_PATH must point to a file inside Railway's mounted volume "${resolvedMount}"; ` +
+      `received "${resolvedDatabase}".`
+    );
+  }
+  return resolvedDatabase;
 }
 
 function getPeerConfig(overrides = {}) {

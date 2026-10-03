@@ -250,13 +250,17 @@ test('Railway uses its mounted volume for SQLite and rejects missing volume conf
   await new Promise((resolve) => server.close(resolve));
   assert.ok(require('node:fs').existsSync(path.join(mountPath, 'users.sqlite')));
 
-  delete process.env.RAILWAY_VOLUME_MOUNT_PATH;
-  assert.throws(() => createApp(), /Railway detected without a mounted volume/);
+  process.env.DATABASE_PATH = path.join(directory, 'outside-volume.sqlite');
+  assert.throws(() => createApp(), /DATABASE_PATH must point to a file inside Railway's mounted volume/);
+  delete process.env.DATABASE_PATH;
 
-  const fileWhereDirectoryIsExpected = path.join(directory, 'not-a-directory');
+  const fileWhereDirectoryIsExpected = path.join(mountPath, 'not-a-directory');
   writeFileSync(fileWhereDirectoryIsExpected, 'blocker');
   assert.throws(
     () => createApp(path.join(fileWhereDirectoryIsExpected, 'users.sqlite')),
-    /Unable to open SQLite database at/
+    /Unable to open SQLite database at.*RAILWAY_RUN_UID=0/
   );
+
+  delete process.env.RAILWAY_VOLUME_MOUNT_PATH;
+  assert.throws(() => createApp(), /Railway detected without a mounted volume/);
 });
