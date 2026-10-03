@@ -1,39 +1,88 @@
 {
-	"version": "2.0.0",
-	"tasks": [
-		{
-			"type": "docker-build",
-			"label": "docker-build",
-			"platform": "node",
-			"dockerBuild": {
-				"dockerfile": "${workspaceFolder}/Dockerfile",
-				"context": "${workspaceFolder}",
-				"pull": true
-			}
-		},
-		{
-			"type": "docker-run",
-			"label": "docker-run: release",
-			"dependsOn": [
-				"docker-build"
-			],
-			"platform": "node"
-		},
-		{
-			"type": "docker-run",
-			"label": "docker-run: debug",
-			"dependsOn": [
-				"docker-build"
-			],
-			"dockerRun": {
-				"env": {
-					"DEBUG": "*",
-					"NODE_ENV": "development"
-				}
-			},
-			"node": {
-				"enableDebugging": true
-			}
-		}
-	]
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "docker-build",
+      "type": "process",
+      "command": "docker",
+      "windows": {
+        "command": "C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe"
+      },
+      "args": [
+        "build",
+        "--pull",
+        "-t",
+        "relay-messenger:latest",
+        "-f",
+        "${workspaceFolder}/Dockerfile",
+        "${workspaceFolder}"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "docker-run: release",
+      "type": "process",
+      "command": "docker",
+      "windows": {
+        "command": "C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe"
+      },
+      "dependsOn": [
+        "docker-build"
+      ],
+      "args": [
+        "compose",
+        "up",
+        "--detach",
+        "--remove-orphans"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "docker-run: debug",
+      "type": "process",
+      "command": "docker",
+      "windows": {
+        "command": "C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe"
+      },
+      "dependsOn": [
+        "docker-build"
+      ],
+      "args": [
+        "compose",
+        "-f",
+        "compose.yaml",
+        "-f",
+        "compose.debug.yaml",
+        "up",
+        "--detach",
+        "--remove-orphans"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "docker-stop",
+      "type": "process",
+      "command": "docker",
+      "windows": {
+        "command": "C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe"
+      },
+      "args": [
+        "compose",
+        "down"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    }
+  ]
 }
