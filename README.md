@@ -36,6 +36,14 @@ The default Blueprint uses testnet and PeerJS's public signaling service. To use
 
 Render deployment still requires the repository to exist on GitHub and a Render account. Do not add wallet secrets or private keys as environment variables; the app never needs them.
 
+## Deploy on Railway
+
+In Railway, deploy the repository with the included Dockerfile, then attach a persistent volume mounted at `/var/data`. Set `DATABASE_PATH=/var/data/users.sqlite`, `NODE_ENV=production`, and `BTC_NETWORK=testnet` in the service variables. Set the healthcheck path to `/healthz`.
+
+Railway mounts volumes as root. Because this image normally runs as the unprivileged `node` user, set Railway's platform variable `RAILWAY_RUN_UID=0` for this service if the mounted directory is not writable; this runs the app process as root inside the container. Use that override only on Railway when needed. The app also detects Railway's `RAILWAY_VOLUME_MOUNT_PATH` automatically if `DATABASE_PATH` is omitted, and fails with a clear startup error if it detects Railway but no volume is mounted.
+
+For private signaling, configure `PEER_HOST`, `PEER_PORT`, `PEER_PATH`, and `PEER_SECURE`. If `PEER_HOST` is blank, browsers use the public PeerJS signaling service. Do not switch `BTC_NETWORK` to `mainnet` until you intentionally want real Bitcoin transactions.
+
 ## Run locally
 
 From this folder in PowerShell:

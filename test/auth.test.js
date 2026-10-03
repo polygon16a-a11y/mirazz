@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict');
-const { mkdtempSync, rmSync } = require('node:fs');
+const { mkdtempSync, rmSync, writeFileSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const path = require('node:path');
 const { test } = require('node:test');
@@ -214,4 +214,49 @@ test('health, CSP nonces, and mutation request guards work', async (context) => 
   assert.equal(response.status, 201);
   assert.match(response.headers.getSetCookie()[0], /Secure/);
   assert.equal(response.headers.get('strict-transport-security'), 'max-age=31536000; includeSubDomains');
+});
+
+test('Railway uses its mounted volume for SQLite and rejects missing volume config', async (context) => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'relay-railway-'));
+  const mountPath = path.join(directory, 'volume');
+  let server;
+  const priorValues = {
+    databasePath: process.env.DATABASE_PATH,
+    volumePath: process.env.RAILWAY_VOLUME_MOUNT_PATH,
+    serviceId: process.env.RAILWAY_SERVICE_ID,
+    environmentName: process.env.RAILWAY_ENVIRONMENT_NAME
+  };
+  context.after(async () => {
+    if (server?.listening) await new Promise((resolve) => server.close(resolve));
+    if (priorValues.databasePath === undefined) delete process.env.DATABASE_PATH;
+    else process.env.DATABASE_PATH = priorValues.databasePath;
+    if (priorValues.volumePath === undefined) delete process.env.RAILWAY_VOLUME_MOUNT_PATH;
+    else process.env.RAILWAY_VOLUME_MOUNT_PATH = priorValues.volumePath;
+    if (priorValues.serviceId === undefined) delete process.env.RAILWAY_SERVICE_ID;
+    else process.env.RAILWAY_SERVICE_ID = priorValues.serviceId;
+    if (priorValues.environmentName === undefined) delete process.env.RAILWAY_ENVIRONMENT_NAME;
+    else process.env.RAILWAY_ENVIRONMENT_NAME = priorValues.environmentName;
+    rmSync(directory, { recursive: true, force: true });
+  });
+
+  delete process.env.DATABASE_PATH;
+  process.env.RAILWAY_VOLUME_MOUNT_PATH = mountPath;
+  process.env.RAILWAY_SERVICE_ID = 'test-service';
+  delete process.env.RAILWAY_ENVIRONMENT_NAME;
+
+  server = createApp();
+  server.listen(0, '127.0.0.1');
+  await new Promise((resolve) => server.once('listening', resolve));
+  await new Promise((resolve) => server.close(resolve));
+  assert.ok(require('node:fs').existsSync(path.join(mountPath, 'users.sqlite')));
+
+  delete process.env.RAILWAY_VOLUME_MOUNT_PATH;
+  assert.throws(() => createApp(), /Railway detected without a mounted volume/);
+
+  const fileWhereDirectoryIsExpected = path.join(directory, 'not-a-directory');
+  writeFileSync(fileWhereDirectoryIsExpected, 'blocker');
+  assert.throws(
+    () => createApp(path.join(fileWhereDirectoryIsExpected, 'users.sqlite')),
+    /Unable to open SQLite database at/
+  );
 });

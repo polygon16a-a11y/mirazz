@@ -14,7 +14,7 @@ const MAX_BODY_BYTES = 16 * 1024;
 const INDEX_HTML = path.join(__dirname, 'index.html');
 const derivePassword = promisify(require('node:crypto').scrypt);
 
-function createApp(databasePath = process.env.DATABASE_PATH || path.join(__dirname, 'data', 'users.sqlite'), options = {}) {
+function createApp(databasePath = getDefaultDatabasePath(), options = {}) {
   const rateLimits = {
     login: options.rateLimits?.login ?? 10,
     register: options.rateLimits?.register ?? 5,
@@ -26,8 +26,17 @@ function createApp(databasePath = process.env.DATABASE_PATH || path.join(__dirna
   }
   const peerConfig = getPeerConfig(options.peer);
   const attempts = new Map();
-  mkdirSync(path.dirname(databasePath), { recursive: true });
-  const database = new DatabaseSync(databasePath);
+  let database;
+  try {
+    mkdirSync(path.dirname(databasePath), { recursive: true });
+    database = new DatabaseSync(databasePath);
+  } catch (error) {
+    throw new Error(
+      `Unable to open SQLite database at "${databasePath}". ` +
+      'Ensure DATABASE_PATH points inside a writable persistent volume.',
+      { cause: error }
+    );
+  }
   database.exec(`
     PRAGMA foreign_keys = ON;
     PRAGMA journal_mode = WAL;
@@ -265,6 +274,20 @@ function isBitcoinAddress(address, network) {
     ? /^(bc1[a-z0-9]{25,62}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})$/
     : /^(tb1[a-z0-9]{25,62}|[mn2][a-km-zA-HJ-NP-Z1-9]{25,34})$/;
   return pattern.test(address);
+}
+
+function getDefaultDatabasePath() {
+  if (process.env.DATABASE_PATH) return process.env.DATABASE_PATH;
+  if (process.env.RAILWAY_VOLUME_MOUNT_PATH) {
+    return path.join(process.env.RAILWAY_VOLUME_MOUNT_PATH, 'users.sqlite');
+  }
+  if (process.env.RAILWAY_SERVICE_ID || process.env.RAILWAY_ENVIRONMENT_NAME) {
+    throw new Error(
+      'Railway detected without a mounted volume. Attach a volume and set DATABASE_PATH ' +
+      'to a file inside its mount path (for example, /var/data/users.sqlite).'
+    );
+  }
+  return path.join(__dirname, 'data', 'users.sqlite');
 }
 
 function getPeerConfig(overrides = {}) {
