@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: relay-messenger
+    runtime: node
+    plan: 0.5c-512mb
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /healthz
+    autoDeployTrigger: checksPass
+    disk:
+      name: relay-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: DATABASE_PATH
+        value: /var/data/users.sqlite
+      - key: BTC_NETWORK
+        value: testnet
+      - key: TRUST_PROXY
+        value: true
+      - key: PEER_HOST
+        value: ""
+      - key: PEER_PORT
+        value: 443
+      - key: PEER_PATH
+        value: /peerjs
+      - key: PEER_SECURE
+        value: true

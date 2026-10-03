@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relay | Peer Messenger</title>
+    <meta name="description" content="Private peer-to-peer messaging with direct Bitcoin and Lightning payments.">
+    <meta name="theme-color" content="#e8efeb">
+    <script src="/vendor/peerjs.min.js"></script>
+    <style nonce="__CSP_NONCE__">
+        :root {
+            color-scheme: light;
+            --ink: #182b32;
+            --muted: #63757a;
+            --line: #d6e0df;
+            --paper: #fff;
+            --canvas: #eff4f2;
+            --accent: #126b62;
+            --accent-dark: #0c504a;
+            --warning: #a33535;
+        }
+        * { box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            margin: 0;
+            padding: 36px 20px;
+            color: var(--ink);
+            background-color: var(--canvas);
+            background-image: linear-gradient(135deg, rgba(255,255,255,.75) 25%, transparent 25%),
+                linear-gradient(315deg, rgba(221,234,229,.45) 25%, transparent 25%);
+            background-size: 34px 34px;
+            font-family: "Segoe UI", sans-serif;
+        }
+        .shell { width: min(100%, 680px); margin: 0 auto; }
+        .masthead {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            margin-bottom: 24px;
+        }
+        .brand { margin: 0; font: 700 30px/1 Georgia, serif; letter-spacing: 0; }
+        .brand-mark { color: var(--accent); }
+        .account-tools { display: flex; align-items: center; gap: 12px; min-width: 0; }
+        #account-email { overflow-wrap: anywhere; color: var(--muted); font-size: 13px; }
+        .panel {
+            padding: clamp(22px, 5vw, 36px);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--paper);
+            box-shadow: 0 16px 45px rgba(28, 58, 53, .08);
+        }
+        .eyebrow { margin: 0 0 10px; color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: 1.2px; }
+        h2 { margin: 0 0 8px; font: 600 27px/1.2 Georgia, serif; letter-spacing: 0; }
+        .intro { margin: 0 0 24px; color: var(--muted); font-size: 14px; line-height: 1.5; }
+        .mode-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 22px; padding: 4px; background: #edf3f1; border-radius: 6px; }
+        .mode-switch button { color: var(--muted); background: transparent; }
+        .mode-switch button[aria-pressed="true"] { color: var(--ink); background: white; box-shadow: 0 1px 4px rgba(20, 48, 42, .12); }
+        .field { display: grid; gap: 7px; margin-bottom: 16px; }
+        .field label { font-size: 13px; font-weight: 600; }
+        input, button { min-height: 44px; border: 1px solid var(--line); border-radius: 5px; font: inherit; }
+        input { width: 100%; padding: 10px 12px; color: var(--ink); background: white; }
+        input:focus-visible, button:focus-visible { outline: 3px solid rgba(18, 107, 98, .24); outline-offset: 2px; }
+        input::placeholder { color: #89989a; }
+        button { padding: 10px 14px; color: white; background: var(--accent); border-color: var(--accent); cursor: pointer; font-size: 14px; font-weight: 650; }
+        button:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
+        button:disabled { cursor: wait; opacity: .65; }
+        button.quiet { min-height: 36px; padding: 7px 10px; color: var(--accent-dark); background: transparent; border-color: var(--line); }
+        button.quiet:hover { background: #edf3f1; }
+        .submit-button { width: 100%; margin-top: 5px; }
+        .auth-error { min-height: 20px; margin: 12px 0 0; color: var(--warning); font-size: 13px; }
+        [hidden] { display: none !important; }
+        .status-box { margin-bottom: 18px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 5px; background: #f4f8f6; font-size: 14px; overflow-wrap: anywhere; }
+        .wallet-box { margin-bottom: 20px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+        .wallet-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 7px; }
+        .wallet-heading h2 { margin: 0; font-size: 20px; }
+        .wallet-network { color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; }
+        .wallet-copy { margin: 0 0 12px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+        .wallet-form { display: flex; gap: 8px; }
+        .wallet-form input { flex: 1; min-width: 0; font-family: Consolas, monospace; }
+        .wallet-connect { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; margin-top: 10px; }
+        .wallet-connect-state { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+        .wallet-message { min-height: 20px; margin: 8px 0 0; color: var(--muted); font-size: 13px; }
+        .transfer-box { margin-bottom: 18px; padding: 14px; border: 1px solid var(--line); border-radius: 5px; background: #f8faf9; }
+        .transfer-box h2 { margin: 0 0 8px; font-size: 20px; }
+        .transfer-peer-address { margin: 0 0 12px; color: var(--muted); font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+        .transfer-peer-address code { color: var(--ink); font-family: Consolas, monospace; }
+        .transfer-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+        .transfer-actions input { flex: 1; min-width: 150px; }
+        .transfer-actions button { min-height: 44px; }
+        .transfer-state { min-height: 20px; margin: 9px 0 0; color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+        .lightning-invoice { display: block; max-height: 110px; overflow: auto; margin: 10px 0; padding: 10px; border: 1px solid var(--line); border-radius: 5px; color: var(--ink); background: white; font: 12px/1.5 Consolas, monospace; overflow-wrap: anywhere; user-select: all; }
+        .lightning-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .lightning-controls input { flex: 1; min-width: 140px; }
+        .lightning-status { min-height: 20px; margin: 9px 0 0; color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+        .manual-invoice { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+        .manual-invoice summary { color: var(--accent-dark); font-size: 13px; font-weight: 650; cursor: pointer; }
+        .manual-invoice textarea { display: block; width: 100%; resize: vertical; margin: 8px 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 5px; color: var(--ink); font: 12px/1.5 Consolas, monospace; overflow-wrap: anywhere; }
+        a.action-button { display: inline-flex; min-height: 44px; align-items: center; padding: 10px 14px; border: 1px solid var(--accent); border-radius: 5px; color: white; background: var(--accent); font-size: 14px; font-weight: 650; text-decoration: none; }
+        a.action-button:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
+        .connection-controls { display: flex; gap: 9px; margin-bottom: 16px; }
+        .connection-controls input { flex: 1; min-width: 0; }
+        #chat-log { display: flex; height: 300px; flex-direction: column; gap: 8px; overflow-y: auto; margin-bottom: 16px; padding: 12px; border: 1px solid var(--line); border-radius: 5px; background: #fbfcfb; }
+        .msg { max-width: 78%; padding: 8px 12px; border-radius: 5px; overflow-wrap: anywhere; }
+        .msg.me { align-self: flex-end; color: white; background: var(--accent); }
+        .msg.peer { align-self: flex-start; color: var(--ink); background: #e8efed; }
+        .msg.system { align-self: center; color: var(--muted); background: transparent; font-size: 12px; text-align: center; }
+        @media (max-width: 480px) {
+            body { padding: 22px 14px; }
+            .masthead { align-items: flex-start; }
+            .account-tools { flex-direction: column; align-items: flex-end; gap: 6px; }
+            .connection-controls { flex-wrap: wrap; }
+            .connection-controls input { flex-basis: 100%; }
+        }
+        :root {
+            --ink: #142522;
+            --muted: #5b6e68;
+            --line: #d0dcd7;
+            --paper: #fff;
+            --canvas: #e8efeb;
+            --accent: #087f67;
+            --accent-dark: #075d4d;
+            --warning: #a43e32;
+            --signal: #edc84b;
+        }
+        body {
+            padding: 24px clamp(14px, 4vw, 52px);
+            background-color: var(--canvas);
+            background-image: linear-gradient(90deg, rgba(255,255,255,.35) 1px, transparent 1px),
+                linear-gradient(rgba(255,255,255,.35) 1px, transparent 1px);
+            background-size: 28px 28px;
+        }
+        .shell { width: min(100%, 1080px); }
+        .masthead { margin-bottom: 18px; padding: 8px 2px 17px; border-bottom: 1px solid #cbd8d2; }
+        .brand { display: flex; align-items: center; gap: 11px; font: 700 32px/1 Georgia, serif; }
+        .brand-mark { display: grid; width: 35px; height: 35px; place-items: center; border-radius: 9px 9px 9px 2px; color: var(--ink); background: var(--signal); font: 800 23px/1 Consolas, monospace; }
+        #account-email { max-width: 250px; }
+        .panel { padding: clamp(18px, 3vw, 30px); border-color: rgba(20, 37, 34, .12); box-shadow: 0 20px 55px rgba(25, 57, 48, .10); }
+        .app-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(330px, .8fr); gap: 24px; align-items: start; }
+        .chat-column, .payment-column { min-width: 0; }
+        .chat-column { display: flex; min-height: 600px; flex-direction: column; }
+        .section-kicker { margin: 0 0 9px; color: var(--accent); font-size: 11px; font-weight: 800; letter-spacing: 1.3px; }
+        .chat-title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 16px; }
+        .chat-title-row h2 { margin: 0; font-size: 25px; }
+        .peer-id { max-width: 58%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 5px; color: var(--muted); background: #f6f9f7; font: 11px/1.4 Consolas, monospace; overflow-wrap: anywhere; }
+        .connection-controls { margin-bottom: 12px; }
+        #chat-log { height: auto; min-height: 340px; flex: 1; margin-bottom: 12px; border-color: #dce5e1; background: #f7faf8; }
+        .msg { max-width: 84%; padding: 10px 13px; border-radius: 9px 9px 9px 2px; }
+        .msg.me { border-radius: 9px 9px 2px 9px; background: var(--accent); }
+        .msg.system { padding: 5px 10px; }
+        .payment-column { display: grid; gap: 12px; }
+        .transfer-box { margin: 0; padding: 17px; border-color: var(--line); border-radius: 7px; background: #f5f8f6; }
+        .transfer-box.lightning-primary { border: 1px solid #c9b353; background: #fff9df; }
+        .lightning-primary .wallet-heading h2 { font-size: 22px; }
+        .wallet-heading { align-items: center; }
+        .wallet-network { padding: 5px 8px; border: 1px solid rgba(20, 37, 34, .12); border-radius: 99px; background: rgba(255,255,255,.72); font-size: 10px; }
+        .wallet-copy { font-size: 12px; }
+        .wallet-connect { margin: 11px 0; }
+        .wallet-connect-state { font-size: 11px; }
+        .lightning-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+        .amount-presets { display: flex; grid-column: 1 / -1; gap: 6px; }
+        .amount-preset { min-height: 32px; padding: 5px 10px; border: 1px solid #dfd4a1; border-radius: 4px; color: #504516; background: rgba(255,255,255,.65); font-size: 12px; }
+        .amount-preset:hover, .amount-preset[aria-pressed="true"] { border-color: var(--ink); color: white; background: var(--ink); }
+        .manual-invoice { margin-top: 12px; padding-top: 10px; }
+        .manual-invoice summary { font-size: 12px; }
+        .incoming-invoice-panel { margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5d99c; }
+        .incoming-invoice-panel .lightning-controls { display: flex; }
+        .incoming-invoice-panel .action-button { flex: 1; justify-content: center; }
+        #pay-invoice-btn { width: 100%; margin-top: 8px; }
+        .lightning-status { font-size: 12px; }
+        details.secondary-tools { border: 1px solid var(--line); border-radius: 7px; background: #f4f7f5; }
+        details.secondary-tools > summary { padding: 13px 15px; color: var(--ink); font-size: 13px; font-weight: 700; cursor: pointer; }
+        details.secondary-tools[open] { padding-bottom: 14px; }
+        details.secondary-tools[open] > summary { margin-bottom: 12px; border-bottom: 1px solid var(--line); }
+        details.secondary-tools .wallet-box, details.secondary-tools .transfer-box { margin: 0 14px 13px; padding: 0 0 13px; border: 0; border-bottom: 1px solid var(--line); background: transparent; }
+        details.secondary-tools .transfer-box:last-child { margin-bottom: 0; border-bottom: 0; }
+        #auth-screen { max-width: 490px; margin: 7vh auto 0; }
+        #auth-screen h2 { font-size: 32px; }
+        @media (max-width: 800px) {
+            .app-grid { grid-template-columns: minmax(0, 1fr); }
+            .chat-column { min-height: 0; }
+            #chat-log { min-height: 240px; }
+            .payment-column { grid-template-columns: minmax(0, 1fr); }
+        }
+        @media (max-width: 480px) {
+            body { padding: 14px 10px; }
+            .masthead { padding-bottom: 12px; }
+            .brand { font-size: 28px; }
+            .panel { padding: 15px; }
+            .chat-title-row { flex-direction: column; }
+            .peer-id { max-width: 100%; }
+            .connection-controls input { flex-basis: 100%; }
+            .connection-controls button { flex: 1; }
+            .lightning-controls { grid-template-columns: minmax(0, 1fr); }
+            .lightning-controls button { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<main class="shell">
+    <header class="masthead">
+        <h1 class="brand"><span class="brand-mark">/</span> relay</h1>
+        <div class="account-tools" id="account-tools" hidden>
+            <span id="account-email"></span>
+            <button class="quiet" id="logout-btn" type="button">Sign out</button>
+        </div>
+    </header>
+
+    <section class="panel" id="auth-screen" aria-labelledby="auth-title">
+        <p class="eyebrow">PRIVATE MESSAGING</p>
+        <h2 id="auth-title">Welcome back</h2>
+        <p class="intro" id="auth-intro">Sign in to open your messenger.</p>
+        <div class="mode-switch" role="group" aria-label="Account action">
+            <button type="button" id="login-mode" aria-pressed="true">Sign in</button>
+            <button type="button" id="register-mode" aria-pressed="false">Create account</button>
+        </div>
+        <form id="auth-form">
+            <div class="field">
+                <label for="email-input">Email</label>
+                <input id="email-input" name="email" type="email" autocomplete="email" maxlength="254" required>
+            </div>
+            <div class="field">
+                <label for="password-input">Password</label>
+                <input id="password-input" name="password" type="password" autocomplete="current-password" minlength="10" maxlength="128" required>
+            </div>
+            <button class="submit-button" id="auth-submit" type="submit">Sign in</button>
+            <p class="auth-error" id="auth-error" role="status" aria-live="polite"></p>
+        </form>
+    </section>
+
+    <section class="panel" id="chat-app" aria-label="Messenger" hidden>
+      <div class="app-grid">
+        <section class="chat-column" aria-label="Peer conversation">
+          <p class="section-kicker">PRIVATE PEER SESSION</p>
+          <div class="chat-title-row">
+            <h2>Conversation</h2>
+            <div class="peer-id"><strong>Your ID</strong><br><span id="my-id">Connecting...</span></div>
+          </div>
+          <div class="connection-controls">
+              <input type="text" id="peer-id-input" placeholder="Paste your peer's ID" aria-label="Remote Peer ID">
+              <button id="connect-btn" type="button">Connect</button>
+          </div>
+          <div id="chat-log" aria-live="polite">
+              <div class="msg system">Connecting to the peer network...</div>
+          </div>
+          <div class="connection-controls">
+              <input type="text" id="message-input" placeholder="Write a message..." aria-label="Message" disabled>
+              <button id="send-btn" type="button" disabled>Send</button>
+          </div>
+        </section>
+
+        <aside class="payment-column" aria-label="Peer payments">
+        <section class="transfer-box lightning-primary" aria-labelledby="lightning-title">
+            <div class="wallet-heading">
+                <h2 id="lightning-title">Lightning</h2>
+                <span class="wallet-network">NO SITE FEE</span>
+            </div>
+            <p class="wallet-copy">Instant peer-to-peer Bitcoin. Create an invoice or pay one from your peer; your wallet shows the routing fee.</p>
+            <div class="wallet-connect">
+                <button class="quiet" id="connect-lightning-btn" type="button">Connect wallet</button>
+                <span class="wallet-connect-state" id="lightning-wallet-state">No Lightning wallet connected</span>
+            </div>
+            <div class="lightning-controls">
+                <div class="amount-presets" aria-label="Quick invoice amounts">
+                    <button class="amount-preset" type="button" data-sats="1000">1k sats</button>
+                    <button class="amount-preset" type="button" data-sats="5000">5k sats</button>
+                    <button class="amount-preset" type="button" data-sats="10000">10k sats</button>
+                </div>
+                <input id="lightning-amount-input" type="number" inputmode="numeric" min="1" step="1" placeholder="Amount in sats" aria-label="Lightning amount in satoshis">
+                <button id="create-invoice-btn" type="button" disabled>Request payment</button>
+            </div>
+            <p class="lightning-status" id="lightning-request-status" role="status" aria-live="polite"></p>
+            <details class="manual-invoice">
+                <summary>Paste invoice from phone wallet</summary>
+                <p class="wallet-copy">Create an invoice in your wallet, then share it with this peer.</p>
+                <textarea id="manual-invoice-input" rows="3" maxlength="4096" placeholder="Paste a Lightning invoice" aria-label="Invoice created by your wallet" spellcheck="false"></textarea>
+                <button id="share-manual-invoice-btn" type="button" disabled>Share invoice</button>
+            </details>
+            <div class="incoming-invoice-panel" id="incoming-invoice-panel" hidden>
+                <p class="transfer-peer-address" id="incoming-invoice-summary"></p>
+                <code class="lightning-invoice" id="incoming-invoice-text"></code>
+                <div class="lightning-controls">
+                    <button class="quiet" id="copy-invoice-btn" type="button">Copy invoice</button>
+                    <a id="open-lightning-invoice" class="action-button">Open wallet</a>
+                </div>
+                <button id="pay-invoice-btn" type="button" disabled>Pay with wallet</button>
+            </div>
+            <p class="lightning-status" id="lightning-payment-status" role="status" aria-live="polite"></p>
+        </section>
+
+        <details class="secondary-tools">
+          <summary>On-chain Bitcoin options</summary>
+          <section class="wallet-box" aria-labelledby="wallet-title">
+            <div class="wallet-heading">
+                <h2 id="wallet-title">Your Bitcoin wallet</h2>
+                <span class="wallet-network" id="wallet-network">testnet</span>
+            </div>
+            <p class="wallet-copy">Save your public receive address. It is shared with the peer only while connected. Never enter a private key or recovery phrase.</p>
+            <form class="wallet-form" id="wallet-form">
+                <input id="bitcoin-address-input" type="text" placeholder="Your public Bitcoin address" aria-label="Your public Bitcoin address" maxlength="90" autocomplete="off" spellcheck="false">
+                <button id="save-wallet-btn" type="submit">Save address</button>
+            </form>
+            <div class="wallet-connect">
+                <button class="quiet" id="connect-wallet-btn" type="button">Connect UniSat wallet</button>
+                <span class="wallet-connect-state" id="wallet-connect-state">No wallet connected</span>
+            </div>
+            <p class="wallet-message" id="wallet-message" role="status" aria-live="polite"></p>
+                    </section>
+                    <section class="transfer-box" aria-labelledby="transfer-title">
+            <h2 id="transfer-title">Send Bitcoin to your peer</h2>
+            <p class="transfer-peer-address" id="peer-wallet-status">Connect to a peer to receive their public Bitcoin address.</p>
+            <div class="transfer-actions">
+                <input id="bitcoin-amount-input" type="text" inputmode="decimal" placeholder="Amount in BTC" aria-label="Amount in BTC" maxlength="20" autocomplete="off">
+                <button id="send-bitcoin-btn" type="button" disabled>Send from wallet</button>
+                <a id="open-wallet-link" class="action-button" hidden>Open in Bitcoin wallet</a>
+            </div>
+            <p class="transfer-state" id="transfer-state" role="status" aria-live="polite"></p>
+            <p class="wallet-copy">Your wallet shows its miner fee separately. The recipient gets the amount entered here; the site charges no fee. Review the address, amount, and fee in your wallet before confirming.</p>
+          </section>
+        </details>
+        </aside>
+      </div>
+    </section>
+</main>
+
+<script nonce="__CSP_NONCE__">
+    const authScreen = document.getElementById('auth-screen');
+    const chatApp = document.getElementById('chat-app');
+    const authForm = document.getElementById('auth-form');
+    const authError = document.getElementById('auth-error');
+    const emailInput = document.getElementById('email-input');
+    const passwordInput = document.getElementById('password-input');
+    const authTitle = document.getElementById('auth-title');
+    const authIntro = document.getElementById('auth-intro');
+    const authSubmit = document.getElementById('auth-submit');
+    const loginMode = document.getElementById('login-mode');
+    const registerMode = document.getElementById('register-mode');
+    const accountTools = document.getElementById('account-tools');
+    let isRegistering = false;
+    let peer = null;
+    let activeConnection = null;
+
+    const myIdDisplay = document.getElementById('my-id');
+    const chatLog = document.getElementById('chat-log');
+    const peerIdInput = document.getElementById('peer-id-input');
+    const connectBtn = document.getElementById('connect-btn');
+    const messageInput = document.getElementById('message-input');
+    const sendBtn = document.getElementById('send-btn');
+    const bitcoinAddressInput = document.getElementById('bitcoin-address-input');
+    const walletMessage = document.getElementById('wallet-message');
+    const bitcoinAmountInput = document.getElementById('bitcoin-amount-input');
+    const openWalletLink = document.getElementById('open-wallet-link');
+    const connectWalletButton = document.getElementById('connect-wallet-btn');
+    const walletConnectState = document.getElementById('wallet-connect-state');
+    const sendBitcoinButton = document.getElementById('send-bitcoin-btn');
+    const transferState = document.getElementById('transfer-state');
+    const lightningAmountInput = document.getElementById('lightning-amount-input');
+    const lightningWalletState = document.getElementById('lightning-wallet-state');
+    const lightningRequestStatus = document.getElementById('lightning-request-status');
+    const lightningPaymentStatus = document.getElementById('lightning-payment-status');
+    const incomingInvoicePanel = document.getElementById('incoming-invoice-panel');
+    const payInvoiceButton = document.getElementById('pay-invoice-btn');
+    const manualInvoiceInput = document.getElementById('manual-invoice-input');
+    let bitcoinNetwork = 'testnet';
+    let myBitcoinAddress = '';
+    let peerBitcoinAddress = '';
+    let connectedWallet = null;
+    let connectedLightningWallet = null;
+    let incomingLightningInvoice = '';
+
+    function setAuthMode(registering) {
+        isRegistering = registering;
+        authTitle.textContent = registering ? 'Create your account' : 'Welcome back';
+        authIntro.textContent = registering
+            ? 'Your account is stored securely on this server.'
+            : 'Sign in to open your messenger.';
+        authSubmit.textContent = registering ? 'Create account' : 'Sign in';
+        passwordInput.autocomplete = registering ? 'new-password' : 'current-password';
+        passwordInput.minLength = registering ? 10 : 1;
+        loginMode.setAttribute('aria-pressed', String(!registering));
+        registerMode.setAttribute('aria-pressed', String(registering));
+        authError.textContent = '';
+    }
+
+    loginMode.addEventListener('click', () => setAuthMode(false));
+    registerMode.addEventListener('click', () => setAuthMode(true));
+
+    authForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        authError.textContent = '';
+        authSubmit.disabled = true;
+        try {
+            const response = await fetch(`/api/auth/${isRegistering ? 'register' : 'login'}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: emailInput.value, password: passwordInput.value })
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'Unable to sign in.');
+            passwordInput.value = '';
+            showMessenger(result.user.email);
+        } catch (error) {
+            authError.textContent = error.message === 'Failed to fetch'
+                ? 'Could not reach the server. Start it with npm start and try again.'
+                : error.message;
+        } finally {
+            authSubmit.disabled = false;
+        }
+    });
+
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+        await fetch('/api/auth/logout', { method: 'POST' });
+        if (peer) peer.destroy();
+        peer = null;
+        activeConnection = null;
+        connectedWallet = null;
+        connectedLightningWallet = null;
+        chatApp.hidden = true;
+        accountTools.hidden = true;
+        authScreen.hidden = false;
+        myIdDisplay.textContent = 'Connecting...';
+        chatLog.replaceChildren();
+        myBitcoinAddress = '';
+        bitcoinAddressInput.value = '';
+        walletMessage.textContent = '';
+        walletConnectState.textContent = 'No wallet connected';
+        transferState.textContent = '';
+        lightningWalletState.textContent = 'No Lightning wallet connected';
+        lightningRequestStatus.textContent = '';
+        lightningPaymentStatus.textContent = '';
+        incomingInvoicePanel.hidden = true;
+        incomingLightningInvoice = '';
+        setPeerBitcoinAddress('');
+        setAuthMode(false);
+    });
+
+    async function showMessenger(email) {
+        document.getElementById('account-email').textContent = email;
+        accountTools.hidden = false;
+        authScreen.hidden = true;
+        chatApp.hidden = false;
+        await loadWalletProfile();
+        if (!peer) startPeer();
+    }
+
+    async function loadWalletProfile() {
+        try {
+            const response = await fetch('/api/wallet');
+            const profile = await response.json();
+            if (!response.ok) throw new Error(profile.error || 'Could not load wallet settings.');
+            bitcoinNetwork = profile.network;
+            myBitcoinAddress = profile.bitcoinAddress || '';
+            bitcoinAddressInput.value = myBitcoinAddress;
+            document.getElementById('wallet-network').textContent = bitcoinNetwork;
+            walletMessage.textContent = myBitcoinAddress
+                ? 'Address saved. It will be shared with your connected peer.'
+                : 'Add an address to receive Bitcoin from a connected peer.';
+            if (activeConnection) announceWallet(activeConnection);
+        } catch (error) {
+            walletMessage.textContent = error.message;
+        }
+    }
+
+    document.getElementById('wallet-form').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const button = document.getElementById('save-wallet-btn');
+        button.disabled = true;
+        try {
+            const response = await fetch('/api/wallet', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bitcoinAddress: bitcoinAddressInput.value })
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'Could not save wallet address.');
+            myBitcoinAddress = result.bitcoinAddress || '';
+            bitcoinNetwork = result.network;
+            walletMessage.textContent = myBitcoinAddress
+                ? 'Address saved. It will be shared with your connected peer.'
+                : 'Receive address removed.';
+            if (activeConnection) announceWallet(activeConnection);
+        } catch (error) {
+            walletMessage.textContent = error.message;
+        } finally {
+            button.disabled = false;
+        }
+    });
+
+    bitcoinAmountInput.addEventListener('input', updateWalletLink);
+    connectWalletButton.addEventListener('click', connectBitcoinWallet);
+    sendBitcoinButton.addEventListener('click', sendBitcoinPayment);
+    document.getElementById('connect-lightning-btn').addEventListener('click', connectLightningWallet);
+    document.getElementById('create-invoice-btn').addEventListener('click', createLightningInvoice);
+    payInvoiceButton.addEventListener('click', payLightningInvoice);
+    lightningAmountInput.addEventListener('input', updateLightningControls);
+    manualInvoiceInput.addEventListener('input', updateLightningControls);
+    document.getElementById('share-manual-invoice-btn').addEventListener('click', shareManualInvoice);
+    document.getElementById('copy-invoice-btn').addEventListener('click', copyIncomingInvoice);
+    document.querySelectorAll('.amount-preset').forEach((preset) => {
+        preset.addEventListener('click', () => {
+            lightningAmountInput.value = preset.dataset.sats;
+            document.querySelectorAll('.amount-preset').forEach((button) => {
+                button.setAttribute('aria-pressed', String(button === preset));
+            });
+            updateLightningControls();
+        });
+    });
+    lightningAmountInput.addEventListener('input', () => {
+        document.querySelectorAll('.amount-preset').forEach((button) => {
+            button.setAttribute('aria-pressed', String(button.dataset.sats === lightningAmountInput.value));
+        });
+    });
+
+    async function connectLightningWallet() {
+        const wallet = window.webln;
+        if (!wallet) {
+            lightningWalletState.textContent = 'Install a WebLN-compatible wallet extension, then try again.';
+            return;
+        }
+        const button = document.getElementById('connect-lightning-btn');
+        button.disabled = true;
+        lightningWalletState.textContent = 'Waiting for wallet approval...';
+        try {
+            await wallet.enable();
+            connectedLightningWallet = wallet;
+            lightningWalletState.textContent = 'Lightning wallet connected';
+            updateLightningControls();
+        } catch (error) {
+            connectedLightningWallet = null;
+            lightningWalletState.textContent = error.message || 'Could not connect Lightning wallet.';
+        } finally {
+            button.disabled = false;
+        }
+    }
+
+    async function createLightningInvoice() {
+        const amountSats = Number(lightningAmountInput.value);
+        if (!connectedLightningWallet) {
+            lightningRequestStatus.textContent = 'Connect a Lightning wallet first.';
+            return;
+        }
+        if (!activeConnection?.open) {
+            lightningRequestStatus.textContent = 'Connect to your peer before creating an invoice.';
+            return;
+        }
+        if (!Number.isSafeInteger(amountSats) || amountSats < 1 || amountSats > 210_000_000_000_000) {
+            lightningRequestStatus.textContent = 'Enter a positive whole-number amount in satoshis.';
+            return;
+        }
+
+        const button = document.getElementById('create-invoice-btn');
+        const connection = activeConnection;
+        button.disabled = true;
+        lightningRequestStatus.textContent = 'Creating invoice in your Lightning wallet...';
+        try {
+            const invoice = await connectedLightningWallet.makeInvoice({
+                amount: amountSats,
+                defaultMemo: 'Peer-to-peer Bitcoin payment'
+            });
+            const paymentRequest = invoice?.paymentRequest || invoice?.payment_request;
+            if (!isLightningInvoice(paymentRequest)) {
+                throw new Error('The Lightning wallet returned an invalid invoice.');
+            }
+            if (activeConnection !== connection || !connection.open) {
+                throw new Error('Peer disconnected while the invoice was being created. Please reconnect and try again.');
+            }
+            connection.send({
+                type: 'relay-lightning-invoice',
+                paymentRequest,
+                amountSats
+            });
+            lightningRequestStatus.textContent = `Invoice for ${amountSats} sats shared with your peer. Keep your wallet online to receive it.`;
+        } catch (error) {
+            lightningRequestStatus.textContent = error.message || 'Could not create Lightning invoice.';
+        } finally {
+            updateLightningControls();
+        }
+    }
+
+    function shareManualInvoice() {
+        const paymentRequest = manualInvoiceInput.value.trim().replace(/\s+/g, '');
+        if (!activeConnection?.open) {
+            lightningRequestStatus.textContent = 'Connect to your peer before sharing an invoice.';
+            return;
+        }
+        if (!isLightningInvoice(paymentRequest)) {
+            lightningRequestStatus.textContent = 'Paste a valid Lightning invoice created by your wallet.';
+            return;
+        }
+        const amountSats = Number(lightningAmountInput.value);
+        activeConnection.send({
+            type: 'relay-lightning-invoice',
+            paymentRequest,
+            amountSats: Number.isSafeInteger(amountSats) && amountSats > 0 ? amountSats : null
+        });
+        lightningRequestStatus.textContent = 'Invoice shared with your peer. Keep your wallet ready to receive it.';
+        manualInvoiceInput.value = '';
+        updateLightningControls();
+    }
+
+    async function copyIncomingInvoice() {
+        try {
+            await navigator.clipboard.writeText(incomingLightningInvoice);
+            lightningPaymentStatus.textContent = 'Invoice copied. Paste it into your Lightning wallet.';
+        } catch {
+            lightningPaymentStatus.textContent = 'Select the invoice text and copy it into your Lightning wallet.';
+        }
+    }
+
+    async function payLightningInvoice() {
+        if (!connectedLightningWallet || !incomingLightningInvoice) return;
+        payInvoiceButton.disabled = true;
+        lightningPaymentStatus.textContent = 'Review the invoice and routing fee in your wallet...';
+        try {
+            await connectedLightningWallet.sendPayment(incomingLightningInvoice);
+            lightningPaymentStatus.textContent = 'Your wallet reports the Lightning payment completed.';
+        } catch (error) {
+            lightningPaymentStatus.textContent = error.message || 'Wallet did not complete the Lightning payment.';
+        } finally {
+            updateLightningControls();
+        }
+    }
+
+    function isLightningInvoice(invoice) {
+        return typeof invoice === 'string' && invoice.length <= 4096 &&
+            /^ln(?:bc|tb|bcrt|sb)[0-9a-z]+$/i.test(invoice);
+    }
+
+    function updateLightningControls() {
+        const amountSats = Number(lightningAmountInput.value);
+        document.getElementById('create-invoice-btn').disabled = !connectedLightningWallet ||
+            !activeConnection?.open || !Number.isSafeInteger(amountSats) || amountSats < 1;
+        document.getElementById('share-manual-invoice-btn').disabled = !activeConnection?.open ||
+            !isLightningInvoice(manualInvoiceInput.value.trim().replace(/\s+/g, ''));
+        payInvoiceButton.disabled = !connectedLightningWallet || !incomingLightningInvoice;
+    }
+
+    async function connectBitcoinWallet() {
+        const wallet = window.unisat;
+        if (!wallet) {
+            walletConnectState.textContent = 'Install the UniSat browser extension, then try again.';
+            return;
+        }
+        connectWalletButton.disabled = true;
+        walletConnectState.textContent = 'Waiting for wallet approval...';
+        try {
+            const accounts = await wallet.requestAccounts();
+            if (!accounts.length) throw new Error('No Bitcoin account is available in this wallet.');
+            const walletNetwork = normalizeWalletNetwork(await wallet.getNetwork());
+            if (walletNetwork !== bitcoinNetwork) {
+                throw new Error(`Wallet is on ${walletNetwork}; this app is configured for ${bitcoinNetwork}.`);
+            }
+            if (!isBitcoinAddress(accounts[0], bitcoinNetwork)) {
+                throw new Error(`Wallet returned an invalid ${bitcoinNetwork} address.`);
+            }
+            connectedWallet = wallet;
+            myBitcoinAddress = accounts[0];
+            bitcoinAddressInput.value = myBitcoinAddress;
+            await saveWalletAddress(myBitcoinAddress);
+            walletConnectState.textContent = `Connected: ${shortAddress(myBitcoinAddress)}`;
+            walletMessage.textContent = 'Wallet connected. Your public address is saved and can be shared with your peer.';
+            wallet.on?.('accountsChanged', handleWalletAccountsChanged);
+            wallet.on?.('networkChanged', handleWalletNetworkChanged);
+            updateWalletLink();
+        } catch (error) {
+            connectedWallet = null;
+            walletConnectState.textContent = error.message || 'Could not connect wallet.';
+        } finally {
+            connectWalletButton.disabled = false;
+        }
+    }
+
+    async function handleWalletAccountsChanged(accounts) {
+        if (!accounts?.length) {
+            connectedWallet = null;
+            walletConnectState.textContent = 'Wallet account disconnected';
+            updateWalletLink();
+            return;
+        }
+        if (!isBitcoinAddress(accounts[0], bitcoinNetwork)) {
+            connectedWallet = null;
+            walletConnectState.textContent = 'Wallet account is for a different network';
+            updateWalletLink();
+            return;
+        }
+        myBitcoinAddress = accounts[0];
+        bitcoinAddressInput.value = myBitcoinAddress;
+        walletConnectState.textContent = `Connected: ${shortAddress(myBitcoinAddress)}`;
+        await saveWalletAddress(myBitcoinAddress);
+    }
+
+    async function handleWalletNetworkChanged(network) {
+        let selectedNetwork;
+        try {
+            selectedNetwork = normalizeWalletNetwork(network);
+        } catch (error) {
+            connectedWallet = null;
+            walletConnectState.textContent = error.message;
+            updateWalletLink();
+            return;
+        }
+        if (selectedNetwork !== bitcoinNetwork) {
+            connectedWallet = null;
+            walletConnectState.textContent = `Wallet switched to ${selectedNetwork}; app is set to ${bitcoinNetwork}`;
+            updateWalletLink();
+            return;
+        }
+        walletConnectState.textContent = `Connected: ${shortAddress(myBitcoinAddress)}`;
+    }
+
+    function normalizeWalletNetwork(network) {
+        if (network === 'livenet' || network === 'mainnet') return 'mainnet';
+        if (network === 'testnet') return 'testnet';
+        throw new Error(`Unsupported wallet network: ${network}`);
+    }
+
+    function shortAddress(address) {
+        return address.length > 18 ? `${address.slice(0, 10)}...${address.slice(-6)}` : address;
+    }
+
+    async function sendBitcoinPayment() {
+        transferState.textContent = '';
+        const amount = normalizeBtcAmount(bitcoinAmountInput.value.trim());
+        if (!connectedWallet) {
+            transferState.textContent = 'Connect a UniSat wallet to send directly.';
+            return;
+        }
+        if (!activeConnection || !peerBitcoinAddress) {
+            transferState.textContent = 'Connect to a peer with a valid receive address first.';
+            return;
+        }
+        if (!amount) {
+            transferState.textContent = 'Enter an amount greater than zero with up to 8 decimal places.';
+            return;
+        }
+        if (!isBitcoinAddress(peerBitcoinAddress, bitcoinNetwork)) {
+            transferState.textContent = 'Peer address does not match the selected Bitcoin network.';
+            return;
+        }
+
+        const satoshis = btcToSatoshis(amount);
+        sendBitcoinButton.disabled = true;
+        transferState.textContent = 'Review the payment and miner fee in your wallet...';
+        try {
+            const walletNetwork = normalizeWalletNetwork(await connectedWallet.getNetwork());
+            if (walletNetwork !== bitcoinNetwork) {
+                throw new Error(`Wallet is on ${walletNetwork}; switch it to ${bitcoinNetwork} and reconnect.`);
+            }
+            const txid = await connectedWallet.sendBitcoin(peerBitcoinAddress, Number(satoshis));
+            transferState.textContent = `Transaction submitted: ${txid}`;
+            logMessage('system', `Bitcoin transaction submitted to wallet: ${txid}`);
+        } catch (error) {
+            transferState.textContent = error.message || 'Wallet did not submit the transaction.';
+        } finally {
+            sendBitcoinButton.disabled = false;
+        }
+    }
+
+    async function saveWalletAddress(address) {
+        const response = await fetch('/api/wallet', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bitcoinAddress: address })
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Could not save wallet address.');
+        myBitcoinAddress = result.bitcoinAddress || '';
+        if (activeConnection) announceWallet(activeConnection);
+    }
+
+    function updateWalletLink() {
+        const amount = normalizeBtcAmount(bitcoinAmountInput.value.trim());
+        if (!activeConnection || !peerBitcoinAddress || !amount) {
+            openWalletLink.hidden = true;
+            openWalletLink.removeAttribute('href');
+        } else {
+            openWalletLink.href = `bitcoin:${peerBitcoinAddress}?amount=${encodeURIComponent(amount)}`;
+            openWalletLink.hidden = false;
+        }
+        sendBitcoinButton.disabled = !connectedWallet || !activeConnection || !peerBitcoinAddress || !amount;
+    }
+
+    function normalizeBtcAmount(value) {
+        if (!/^(?:0|[1-9]\d*)(?:\.\d{1,8})?$/.test(value)) return '';
+        const [whole, fraction = ''] = value.split('.');
+        const satoshis = btcToSatoshis(value);
+        if (satoshis < 1n || satoshis > 210_000_000_000_000n) return '';
+        return `${whole}.${fraction.padEnd(8, '0')}`;
+    }
+
+    function btcToSatoshis(value) {
+        const [whole, fraction = ''] = value.split('.');
+        return BigInt(whole) * 100_000_000n + BigInt(fraction.padEnd(8, '0'));
+    }
+
+    function isBitcoinAddress(address, network) {
+        const pattern = network === 'mainnet'
+            ? /^(bc1[a-z0-9]{25,62}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})$/
+            : /^(tb1[a-z0-9]{25,62}|[mn2][a-km-zA-HJ-NP-Z1-9]{25,34})$/;
+        return pattern.test(address);
+    }
+
+    function setPeerBitcoinAddress(address) {
+        peerBitcoinAddress = address;
+        const status = document.getElementById('peer-wallet-status');
+        status.replaceChildren();
+        if (peerBitcoinAddress) {
+            status.append('Peer receive address: ');
+            const addressLabel = document.createElement('code');
+            addressLabel.textContent = peerBitcoinAddress;
+            status.append(addressLabel);
+        } else {
+            status.textContent = activeConnection
+                ? 'Peer has not shared a Bitcoin receive address.'
+                : 'Connect to a peer to receive their public Bitcoin address.';
+        }
+        updateWalletLink();
+    }
+
+    function announceWallet(connection) {
+        if (connection?.open) {
+            connection.send({
+                type: 'relay-bitcoin-wallet',
+                network: bitcoinNetwork,
+                address: myBitcoinAddress
+            });
+        }
+    }
+
+    function handlePeerData(data) {
+        if (data && typeof data === 'object' && data.type === 'relay-bitcoin-wallet') {
+            if (data.network !== bitcoinNetwork) {
+                setPeerBitcoinAddress('');
+                logMessage('system', `Peer uses ${data.network}; this app is set to ${bitcoinNetwork}.`);
+                return;
+            }
+            if (data.address && !isBitcoinAddress(data.address, bitcoinNetwork)) {
+                setPeerBitcoinAddress('');
+                logMessage('system', 'Peer shared an invalid Bitcoin address.');
+                return;
+            }
+            setPeerBitcoinAddress(data.address || '');
+            return;
+        }
+        if (data && typeof data === 'object' && data.type === 'relay-lightning-invoice') {
+            if (!isLightningInvoice(data.paymentRequest)) {
+                logMessage('system', 'Peer shared an invalid Lightning invoice.');
+                return;
+            }
+            incomingLightningInvoice = data.paymentRequest;
+            incomingInvoicePanel.hidden = false;
+            document.getElementById('incoming-invoice-text').textContent = data.paymentRequest;
+            document.getElementById('open-lightning-invoice').href = `lightning:${data.paymentRequest}`;
+            const amount = Number.isSafeInteger(data.amountSats) && data.amountSats > 0
+                ? `${data.amountSats} sats requested by peer. Confirm the actual invoice amount in your wallet.`
+                : 'Peer shared an invoice. Confirm its amount and details in your wallet.';
+            document.getElementById('incoming-invoice-summary').textContent = amount;
+            lightningPaymentStatus.textContent = '';
+            updateLightningControls();
+            return;
+        }
+        logMessage('peer', typeof data === 'string' ? data : JSON.stringify(data));
+    }
+
+    async function startPeer() {
+        if (typeof Peer !== 'function') {
+            myIdDisplay.textContent = 'Peer service unavailable';
+            logMessage('system', 'The peer networking library could not be loaded. Refresh the page to retry.');
+            return;
+        }
+        let peerOptions;
+        try {
+            const response = await fetch('/api/config');
+            const config = await response.json();
+            if (!response.ok) throw new Error(config.error || 'Could not load signaling settings.');
+            if (config.peer?.host) peerOptions = config.peer;
+        } catch (error) {
+            logMessage('system', `Using default peer signaling: ${error.message}`);
+        }
+        peer = peerOptions ? new Peer(undefined, peerOptions) : new Peer();
+        peer.on('open', (id) => {
+            myIdDisplay.textContent = id;
+            logMessage('system', 'Ready! Share your ID or connect to another.');
+        });
+        peer.on('connection', (connection) => {
+            if (activeConnection) {
+                connection.close();
+                return;
+            }
+            setupConnection(connection);
+            logMessage('system', 'Connected to incoming peer.');
+        });
+        peer.on('error', (error) => logMessage('system', `Peer service error: ${error.type || error.message}`));
+    }
+
+    connectBtn.addEventListener('click', () => {
+        const targetId = peerIdInput.value.trim();
+        if (!targetId || !peer) return;
+        logMessage('system', `Attempting to connect to ${targetId}...`);
+        setupConnection(peer.connect(targetId));
+    });
+
+    function setupConnection(connection) {
+        activeConnection = connection;
+        connection.on('open', () => {
+            logMessage('system', 'P2P data channel established.');
+            messageInput.disabled = false;
+            sendBtn.disabled = false;
+            peerIdInput.disabled = true;
+            connectBtn.disabled = true;
+            announceWallet(connection);
+            updateWalletLink();
+            updateLightningControls();
+        });
+        connection.on('data', handlePeerData);
+        connection.on('close', () => {
+            logMessage('system', 'Peer disconnected.');
+            resetUI();
+            setPeerBitcoinAddress('');
+            incomingLightningInvoice = '';
+            incomingInvoicePanel.hidden = true;
+            lightningPaymentStatus.textContent = '';
+            updateLightningControls();
+        });
+        connection.on('error', (error) => {
+            logMessage('system', `Connection error: ${error.message}`);
+            resetUI();
+        });
+    }
+
+    function sendMessage() {
+        const text = messageInput.value.trim();
+        if (!text || !activeConnection) return;
+        activeConnection.send(text);
+        logMessage('me', text);
+        messageInput.value = '';
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+    messageInput.addEventListener('keypress', (event) => {
+        if (event.key === 'Enter') sendMessage();
+    });
+
+    function logMessage(sender, text) {
+        const line = document.createElement('div');
+        line.classList.add('msg', sender);
+        line.textContent = text;
+        chatLog.appendChild(line);
+        chatLog.scrollTop = chatLog.scrollHeight;
+    }
+
+    function resetUI() {
+        activeConnection = null;
+        messageInput.disabled = true;
+        sendBtn.disabled = true;
+        peerIdInput.disabled = false;
+        connectBtn.disabled = false;
+        incomingLightningInvoice = '';
+        incomingInvoicePanel.hidden = true;
+        lightningPaymentStatus.textContent = '';
+        lightningRequestStatus.textContent = '';
+        manualInvoiceInput.value = '';
+        setPeerBitcoinAddress('');
+        updateWalletLink();
+        updateLightningControls();
+    }
+
+    fetch('/api/auth/me').then(async (response) => {
+        if (!response.ok) return;
+        const result = await response.json();
+        showMessenger(result.user.email);
+    }).catch(() => {});
+</script>
+
+</body>
+</html>
