@@ -1,0 +1,16 @@
+{
+  "name": "web-p2p-messenger",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Peer-to-peer messenger with SQLite-backed accounts",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=22.5"
+  },
+  "dependencies": {
+    "peerjs": "1.5.5"
+  }
+}

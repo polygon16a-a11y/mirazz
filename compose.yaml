@@ -1,0 +1,34 @@
+services:
+  webp2pmessenger:
+    image: relay-messenger:latest
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    restart: unless-stopped
+    init: true
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 100
+    tmpfs:
+      - /tmp:size=16m,noexec,nosuid
+    volumes:
+      - relay_data:/data
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      HOST: 0.0.0.0
+      PORT: 3000
+      DATABASE_PATH: /data/users.sqlite
+      BTC_NETWORK: ${BTC_NETWORK:-testnet}
+      PEER_HOST: ${PEER_HOST:-}
+      PEER_PORT: ${PEER_PORT:-443}
+      PEER_PATH: ${PEER_PATH:-/peerjs}
+      PEER_SECURE: ${PEER_SECURE:-true}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+    ports:
+      - 127.0.0.1:${APP_PORT:-3000}:3000
+
+volumes:
+  relay_data:
